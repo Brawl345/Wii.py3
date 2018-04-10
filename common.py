@@ -4,6 +4,12 @@ import hashlib
 from Crypto.Cipher import AES
 
 
+def align(x, boundary):
+    while x % boundary != 0:
+        x += 1
+    return x
+
+
 class Crypto:
     """"This is a Cryptographic/hash class used to abstract away things (to make changes easier)"""
     align = 64

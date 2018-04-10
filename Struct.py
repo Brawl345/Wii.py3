@@ -18,7 +18,7 @@ class StructException(Exception):
 
 
 class Struct:
-    __slots__ = ('__attrs__', '__baked__', '__defs__', '__endian__', '__next__', '__sizes__', '__values__')
+    __slots__ = ('__attrs__', '__baked__', '__defs__', '__next__', '__sizes__', '__values__')
     int8 = StructType(('b', 1))
     uint8 = StructType(('B', 1))
 
@@ -39,6 +39,7 @@ class Struct:
 
     LE = '<'
     BE = '>'
+    __endian__ = '<'
 
     def __init__(self, func=None, unpack=None, **kwargs):
         self.__defs__ = []
@@ -47,7 +48,6 @@ class Struct:
         self.__values__ = {}
         self.__next__ = True
         self.__baked__ = False
-        self.__endian__ = '<'
 
         if not func:
             self.__format__()
