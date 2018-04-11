@@ -20,9 +20,20 @@ This file lists all changes that were made from Wii.py to Wii.py3.
 * Corrected a few mistakes
 * Fixed a critical bug where set_titles wouldn't work, because the MD5 has to be replaced by the MD5 blanker before hash calculation - this means that modifying the loc.dat now actually works!
 * Improved error handling
+* Begin counting slots at 1 rather than 0
 
 ### Savegame
 * Check MD5
 * Use right IV at file offset 0x050 - decryption now actually works!
 * Raise exception if folder "extraction" fails
 * Corrected header for SavegameBanner
+
+## formats.py
+### netConfig
+* Rewrote with `ConfigHeader` and `ConfigEntry` classes
+* Improved nearly everything
+* Use string representation of binaries - it's a bit easier to understand and I'm having a hard time with bitwise operations
+* Begin counting slots at 1 rather than 0
+* Renamed "config" parameters to "slot" so it's not so confusing
+* WEP encryption is now supported (reading + writing)
+* Added more functions for manipulating data

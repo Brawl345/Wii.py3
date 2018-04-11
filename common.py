@@ -10,6 +10,23 @@ def align(x, boundary):
     return x
 
 
+def replace_in_string(string, index, repl):
+    """Replaces index num in string with repl."""
+    return string[:index] + repl + string[index + 1:]
+
+
+def pad_blocksize(value, block=64):
+    """Pads value to blocksize
+
+    Args:
+        value (bytes): Value to pad
+        block (int): Block size (Default: 64)
+    """
+    if len(value) % block != 0:
+        value += b"\x00" * (block - (len(value) % block))
+    return value
+
+
 class Crypto:
     """"This is a Cryptographic/hash class used to abstract away things (to make changes easier)"""
     align = 64
