@@ -637,3 +637,119 @@ class NetConfig:
                     output += "      Password: {0}\n".format(slot.proxy.proxyPassword.rstrip(b"\x00").decode('latin-1'))
 
         return output
+
+
+class IplSave:
+    """This class perfoms all iplsave.bin related functions, like (re-)moving and adding channels.
+       Reference: http://wiibrew.org/wiki//title/00000001/00000002/data/iplsave.bin
+
+    Args:
+        f (str): Path to iplsave.bin
+        nand (bool): Create new iplsave.bin in NAND (Default: False)
+    """
+
+    class IplSaveEntry(Struct):
+        __endian__ = Struct.BE
+
+        def __format__(self, func=None):
+            self.type1 = Struct.uint8
+            self.type2 = Struct.uint8
+            self.unknown = Struct.uint32
+            self.flags = Struct.uint16
+            self.titleid = Struct.uint64
+
+        def __repr__(self):
+            return "{:08x}{:08x}".format(self.titleid >> 32, self.titleid & 0xFFFFFFFF)
+
+    class IplSaveHeader(Struct):
+        __endian__ = Struct.BE
+
+        def __format__(self, func=None):
+            self.magic = Struct.string(4)
+            self.filesize = Struct.uint32
+            self.unknown = Struct.uint64
+
+    class IplSaveFooter(Struct):
+        __endian__ = Struct.BE
+
+        def __format__(self, func=None):
+            self.unknown = Struct.string(0x20)
+            self.md5 = Struct.string(0x10)  # Or make md5 seperate?
+
+    def __init__(self, f, nand=False):
+        self.f = f
+        if not os.path.isfile(self.f):
+            if nand:
+                raise NotImplementedError()
+            else:
+                raise Exception("iplsave.bin does not exist and nand is set to False")
+
+        fp = open(f, 'r+b')
+        self.hdr = self.IplSaveHeader().unpack(fp.read(16))
+        self.channels = []
+        self.usedBlocks = 0
+        self.freeBlocks = 0
+        for i in range(0x30):
+            fp.seek(16 + (16 * i))
+            self.channels.append(self.IplSaveEntry().unpack(fp.read(16)))
+            if self.channels[i].titleid == 0 and self.channels[i].type1 != 1:
+                self.freeBlocks += 1
+        fp.seek(1168)
+        self.footer = self.IplSaveFooter().unpack(fp.read(48))
+        fp.seek(0)
+        if self.footer.md5 != Crypto().create_md5hash(fp.read(1200)):
+            fp.close()
+            raise Exception("MD5 Sum mismatch!")
+
+        self.usedBlocks = 48 - self.freeBlocks
+        fp.close()
+
+    def get_free_blocks(self):
+        """Returns # of free slots."""
+        return self.freeBlocks
+
+    def get_used_blocks(self):
+        """Returns # of used slots."""
+        return self.usedBlocks
+
+    def is_block_free(self, col, row, page):
+        """Returns True if slot in col in row on page is free.
+
+        Args:
+            col (int): Column number (1-4)
+            row (int): Row number (1-3)
+            page (int): Page number (1-4)
+        """
+        if not 1 <= col <= 4 or not 1 <= row <= 3 or not 1 <= page <= 4:
+            raise ValueError("Out of bounds")
+        i = ((col - 1) + ((row - 1) * 4) + ((page - 1) * 12))
+        if self.channels[i].titleid == 0 and self.channels[i].type1 != 1:
+            return True
+        return False
+
+    def __repr__(self):
+        return "Wii IplSave: {0} slots used out of 48 ({1} free)".format(self.usedBlocks, self.freeBlocks)
+
+    def __str__(self):
+        output = "IplSave:\n"
+        output += "  Used {0} slots out of 48 ({1} free)\n\n".format(self.usedBlocks, self.freeBlocks)
+
+        for page in range(4):
+            output += "  Page {0}:\n    ".format(page + 1)
+            for row in range(3):
+                for slot in range(4):
+                    curtitle = self.channels[(slot + (row * 4) + (page * 12))]
+                    if curtitle.titleid == 0:
+                        if curtitle.type1 == 1:
+                            output += "{0:8}".format("Disc")
+                        else:
+                            output += "{0:8}".format("Empty")
+                    else:
+                        ascii_titleid = "{:08x}".format(curtitle.titleid & 0xFFFFFFFF)
+                        output += "{0:8}".format(unhexlify(ascii_titleid).decode())
+                if row == 2:
+                    output += "\n\n"
+                else:
+                    output += "\n    "
+        return output
+

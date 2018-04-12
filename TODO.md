@@ -3,6 +3,7 @@ TODO
 
 ## General
 - [ ] Use Struct.pack()
+- [ ] Check parameters for right type
 
 ## export.py
 ### Savegame

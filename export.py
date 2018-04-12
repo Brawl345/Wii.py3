@@ -388,11 +388,11 @@ class LocDat:
         self.set_title(col, row, page, b"\x00\x00\x00\x00")
 
     def __repr__(self):
-        return "Wii LocDat: {0} blocks used out of 240 ({1} free)".format(self.usedBlocks, self.freeBlocks)
+        return "Wii LocDat: {0} slots used out of 240 ({1} free)".format(self.usedBlocks, self.freeBlocks)
 
     def __str__(self):
         output = "LocDat:\n"
-        output += "  Used {0} blocks out of 240 ({1} free)\n\n".format(self.usedBlocks, self.freeBlocks)
+        output += "  Used {0} slots out of 240 ({1} free)\n\n".format(self.usedBlocks, self.freeBlocks)
 
         for page in range(20):
             output += "  Page {0}:\n    ".format(page + 1)

@@ -38,3 +38,8 @@ This file lists all changes that were made from Wii.py to Wii.py3.
 * WEP encryption is now supported (reading + writing)
 * Added more functions for manipulating data
 * Proxy support (reading + writing)
+
+### iplsave
+* Divided into `IplSaveHeader`, `IplSaveEntry` and `IplSaveFooter`
+* Unpack values (why have classes if we don't use them!)
+* Checks MD5 of file
