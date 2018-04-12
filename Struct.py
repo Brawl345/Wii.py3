@@ -236,7 +236,7 @@ class Struct:
     def pack(self):
         arraypos, arrayname = None, None
 
-        ret = ''
+        ret = b''
         for i in range(len(self.__defs__)):
             sdef, size, attrs = self.__defs__[i], self.__sizes__[i], self.__attrs__[i]
 
@@ -258,7 +258,7 @@ class Struct:
                     temp = temp.encode(encoding)
 
                 temp = temp[:size]
-                ret += temp + ('\0' * (size - len(temp)))
+                ret += temp + (b'\0' * (size - len(temp)))
             elif sdef == Struct:
                 if attrs[0] == '*':
                     if arrayname != attrs:

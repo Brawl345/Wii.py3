@@ -37,3 +37,4 @@ This file lists all changes that were made from Wii.py to Wii.py3.
 * Renamed "config" parameters to "slot" so it's not so confusing
 * WEP encryption is now supported (reading + writing)
 * Added more functions for manipulating data
+* Proxy support (reading + writing)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import socket
 import string
 from binascii import hexlify, unhexlify
 
@@ -121,8 +122,6 @@ class NetConfig:
 
     def get_ssid(self, slot):
         """Returns the SSID from the specified slot."""
-        # TODO: Return None for LAN?
-        # TODO: What about the Wi-Fi-Connector?
         if self.is_blank(slot):
             return None
         slot -= 1
@@ -130,7 +129,6 @@ class NetConfig:
 
     def get_key(self, slot):
         """Returns the key/password from the specified slot."""
-        # TODO: Return None for LAN?
         if self.is_blank(slot):
             return None
         slot -= 1
@@ -154,7 +152,6 @@ class NetConfig:
 
     def get_encryption_type(self, slot):
         """Returns the encryption type from the specified slot."""
-        # TODO: Check for LAN/Wifi-Connector and return None
         if self.is_blank(slot):
             return None
         slot -= 1
@@ -307,7 +304,7 @@ class NetConfig:
         file = open(self.f, "rb+")
 
         file.seek(8 + (0x91C * slot) + 1988)
-        file.write(ssid.encode())
+        file.write(pad_blocksize(ssid.encode(), 32))
         file.seek(8 + (0x91C * slot) + 2021)
         file.write(unhexlify("%02X" % len(ssid)))
         file.close()
@@ -349,7 +346,7 @@ class NetConfig:
             raise Exception("Connection in slot is wired")
 
         if len(key) > 64:
-            raise Exception("Key must be < 64 characters")
+            raise Exception("Key must be <= 64 characters")
 
         encryption = self.get_encryption_type(slot)
 
@@ -399,7 +396,192 @@ class NetConfig:
             else:
                 file.write(pad_blocksize(key.encode() * 4))
         else:
-            file.write(key.encode())
+            file.write(pad_blocksize(key.encode()))
+
+        file.close()
+
+    def set_dns(self, slot, dns, primary=True):
+        """Sets DNS for slot."""
+        if self.is_blank(slot):
+            return None
+
+        slot -= 1
+        try:
+            dns = socket.inet_aton(dns)
+        except OSError:
+            raise Exception("IPv4 address is invalid")
+
+        file = open(self.f, "rb+")
+        if primary:
+            file.seek(8 + (0x91C * slot) + 16)
+        else:
+            file.seek(8 + (0x91C * slot) + 20)
+        file.write(dns)
+        file.close()
+        self.set_dns_type(slot + 1, False)
+
+    def set_ip(self, slot, ip):
+        """Sets IP for slot."""
+        if self.is_blank(slot):
+            return None
+
+        slot -= 1
+        try:
+            ip = socket.inet_aton(ip)
+        except OSError:
+            raise Exception("IPv4 address is invalid")
+
+        file = open(self.f, "rb+")
+        file.seek(8 + (0x91C * slot) + 4)
+        file.write(ip)
+        file.close()
+        self.set_ip_type(slot + 1, False)
+
+    def set_subnet(self, slot, ip):
+        """Sets Subnet mask for slot."""
+        if self.is_blank(slot):
+            return None
+
+        slot -= 1
+        try:
+            ip = socket.inet_aton(ip)
+        except OSError:
+            raise Exception("IPv4 address is invalid")
+
+        file = open(self.f, "rb+")
+        file.seek(8 + (0x91C * slot) + 8)
+        file.write(ip)
+        file.close()
+        self.set_ip_type(slot + 1, False)
+
+    def set_gateway(self, slot, ip):
+        """Sets Gateway for slot."""
+        if self.is_blank(slot):
+            return None
+
+        slot -= 1
+        try:
+            ip = socket.inet_aton(ip)
+        except OSError:
+            raise Exception("IPv4 address is invalid")
+
+        file = open(self.f, "rb+")
+        file.seek(8 + (0x91C * slot) + 12)
+        file.write(ip)
+        file.close()
+        self.set_ip_type(slot + 1, False)
+
+    def set_mtu(self, slot, mtu):
+        """Sets MTU for slot."""
+        if self.is_blank(slot):
+            return None
+
+        slot -= 1
+        if mtu != 0 and not 576 <= mtu <= 1500:
+            raise Exception("Invalid MTU - valid values are 0 and 576 up to 1500")
+
+        file = open(self.f, "rb+")
+        file.seek(8 + (0x91C * slot) + 26)
+        file.write(unhexlify(hex(mtu)[2:].zfill(4)))
+        file.close()
+
+    def set_proxy_state(self, slot, active=True, userandpass=False):
+        """Sets proxy flag for slot. Set 'userandpass' to True for authentication."""
+        if self.is_blank(slot):
+            return None
+
+        slot -= 1
+        file = open(self.f, "rb+")
+        file.seek(8 + (0x91C * slot) + 36)
+        if active:
+            file.write(b"\x01")
+        else:
+            file.write(b"\x00")
+        if userandpass:
+            file.write(b"\x01")
+        else:
+            file.write(b"\x00")
+
+        file.seek(8 + (0x91C * slot) + 364)
+        if active:
+            file.write(b"\x01")
+        else:
+            file.write(b"\x00")
+        if userandpass:
+            file.write(b"\x01")
+        else:
+            file.write(b"\x00")
+
+        file.close()
+
+    def set_proxy_server(self, slot, server):
+        """Sets proxy server for slot."""
+        if self.is_blank(slot):
+            return None
+
+        if len(server) > 255:
+            raise Exception("Server address must be < 256 characters!")
+
+        slot -= 1
+        file = open(self.f, "rb+")
+        file.seek(8 + (0x91C * slot) + 40)
+        file.write(pad_blocksize(server.encode(), 255))
+        file.seek(8 + (0x91C * slot) + 368)
+        file.write(pad_blocksize(server.encode(), 255))
+
+        file.close()
+
+    def set_proxy_port(self, slot, port):
+        """Sets proxy port for slot."""
+        if self.is_blank(slot):
+            return None
+
+        if not isinstance(port, int):
+            raise ValueError("Port must be an integer")
+
+        if not 0 < port <= 34463:
+            raise ValueError("Port must be between 1 and 34463")
+
+        slot -= 1
+        file = open(self.f, "rb+")
+        file.seek(8 + (0x91C * slot) + 296)
+        file.write(unhexlify(hex(port)[2:].zfill(4)))
+        file.seek(8 + (0x91C * slot) + 624)
+        file.write(unhexlify(hex(port)[2:].zfill(4)))
+
+        file.close()
+
+    def set_proxy_username(self, slot, username):
+        """Sets proxy username for slot."""
+        if self.is_blank(slot):
+            return None
+
+        if len(username) > 32:
+            raise Exception("Username must be <= 32 characters!")
+
+        slot -= 1
+        file = open(self.f, "rb+")
+        file.seek(8 + (0x91C * slot) + 298)
+        file.write(pad_blocksize(username.encode(), 32))
+        file.seek(8 + (0x91C * slot) + 626)
+        file.write(pad_blocksize(username.encode(), 32))
+
+        file.close()
+
+    def set_proxy_password(self, slot, password):
+        """Sets proxy password for slot."""
+        if self.is_blank(slot):
+            return None
+
+        if len(password) > 32:
+            raise Exception("Password must be <= 32 characters!")
+
+        slot -= 1
+        file = open(self.f, "rb+")
+        file.seek(8 + (0x91C * slot) + 331)
+        file.write(pad_blocksize(password.encode(), 32))
+        file.seek(8 + (0x91C * slot) + 659)
+        file.write(pad_blocksize(password.encode(), 32))
 
         file.close()
 

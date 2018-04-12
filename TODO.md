@@ -1,6 +1,9 @@
 TODO
 ====
 
+## General
+- [ ] Use Struct.pack()
+
 ## export.py
 ### Savegame
 - [ ] extract_banner()
@@ -8,10 +11,9 @@ TODO
 - [ ] self.savegameId -> uint64?
 
 ## formats.py
-### NetworkConfig
+### NetConfig
 - [X] set_key()
 - [ ] set_key(): Interpret HEX as ASCII if length of ASCII
 - [X] set_encryption()
-- [ ] others: set_dns, set_mask, set_gateway...
-- [ ] set_proxy()
-- [ ] set_mtu()
+- [X] set_proxy() (also for proxyCopy)
+- [X] set_mtu()
