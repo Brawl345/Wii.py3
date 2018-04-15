@@ -645,7 +645,6 @@ class IplSave:
 
     Args:
         f (str): Path to iplsave.bin
-        nand (bool): Create new iplsave.bin in NAND (Default: False)
     """
 
     class IplSaveEntry(Struct):
@@ -669,39 +668,29 @@ class IplSave:
             self.filesize = Struct.uint32
             self.unknown = Struct.uint64
 
-    class IplSaveFooter(Struct):
-        __endian__ = Struct.BE
-
-        def __format__(self, func=None):
-            self.unknown = Struct.string(0x20)
-            self.md5 = Struct.string(0x10)  # Or make md5 seperate?
-
-    def __init__(self, f, nand=False):
+    def __init__(self, f):
         self.f = f
-        if not os.path.isfile(self.f):
-            if nand:
-                raise NotImplementedError()
-            else:
-                raise Exception("iplsave.bin does not exist and nand is set to False")
 
-        fp = open(f, 'r+b')
+        try:
+            fp = open(f, 'r+b')
+        except:
+            raise Exception("File could not be opened")
         self.hdr = self.IplSaveHeader().unpack(fp.read(16))
         self.channels = []
         self.usedBlocks = 0
         self.freeBlocks = 0
-        for i in range(0x30):
-            fp.seek(16 + (16 * i))
+        for i in range(48):
             self.channels.append(self.IplSaveEntry().unpack(fp.read(16)))
-            if self.channels[i].titleid == 0 and self.channels[i].type1 != 1:
+            if self.channels[i].titleid == 0 and self.channels[i].type1 == 0:
                 self.freeBlocks += 1
-        fp.seek(1168)
-        self.footer = self.IplSaveFooter().unpack(fp.read(48))
+        self.usedBlocks = 48 - self.freeBlocks
+
+        self.footer = fp.read(self.hdr.filesize - 16 - 768 - 16)  # size of file - header - channels - md5
+        self.md5 = fp.read(16)
         fp.seek(0)
-        if self.footer.md5 != Crypto().create_md5hash(fp.read(1200)):
+        if self.md5 != Crypto().create_md5hash(fp.read(self.hdr.filesize - 16)):  # whole file minus md5
             fp.close()
             raise Exception("MD5 Sum mismatch!")
-
-        self.usedBlocks = 48 - self.freeBlocks
         fp.close()
 
     def get_free_blocks(self):
@@ -723,9 +712,45 @@ class IplSave:
         if not 1 <= col <= 4 or not 1 <= row <= 3 or not 1 <= page <= 4:
             raise ValueError("Out of bounds")
         i = ((col - 1) + ((row - 1) * 4) + ((page - 1) * 12))
-        if self.channels[i].titleid == 0 and self.channels[i].type1 != 1:
+        if self.channels[i].titleid == 0 and self.channels[i].type1 == 0:
             return True
         return False
+
+    def update_md5(self):
+        """Updates the MD5 sum of the file. Used by other functions."""
+        fp = open(self.f, "r+b")
+        data = fp.read(self.hdr.filesize - 16)
+        md5 = Crypto().create_md5hash(data)
+        fp.write(md5)
+        fp.close()
+
+    def move_title(self, col1, row1, page1, col2, row2, page2):
+        """Moves title from col1, row1, page1 to col2, row2, page2"""
+        if not 1 <= col1 <= 4 or not 1 <= row1 <= 3 or not 1 <= page1 <= 4:
+            raise ValueError("Source is out of bounds")
+        if not 1 <= col2 <= 4 or not 1 <= row2 <= 3 or not 1 <= page2 <= 4:
+            raise ValueError("Destination is out of bounds")
+        if (col1, row1, page1) == (col2, row2, page2):
+            raise ValueError("Title is already in this position")
+
+        if self.is_block_free(col1, row1, page1):
+            raise Exception("No channel on source tile")
+        if not self.is_block_free(col2, row2, page2):
+            raise Exception("Destination tile is not free")
+
+        oldpos = ((col1 - 1) + ((row1 - 1) * 4) + ((page1 - 1) * 12))
+        newpos = ((col2 - 1) + ((row2 - 1) * 4) + ((page2 - 1) * 12))
+        self.channels[oldpos], self.channels[newpos] = self.channels[newpos], self.channels[oldpos]
+
+        fp = open(self.f, "r+b")
+        fp.write(self.hdr.pack())
+        for i in range(48):
+            fp.write(self.channels[i].pack())
+        fp.write(self.footer)
+
+        fp.close()
+        self.update_md5()
+
 
     def __repr__(self):
         return "Wii IplSave: {0} slots used out of 48 ({1} free)".format(self.usedBlocks, self.freeBlocks)

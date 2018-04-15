@@ -40,6 +40,7 @@ This file lists all changes that were made from Wii.py to Wii.py3.
 * Proxy support (reading + writing)
 
 ### iplsave
-* Divided into `IplSaveHeader`, `IplSaveEntry` and `IplSaveFooter`
+* Support both "versions" of the file - one is 832 bytes, the new one for >= 4.0 is 1216 bytes
+* Divided into `IplSaveHeader` and `IplSaveEntry`
 * Unpack values (why have classes if we don't use them!)
 * Checks MD5 of file
