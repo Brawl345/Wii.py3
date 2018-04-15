@@ -45,3 +45,6 @@ This file lists all changes that were made from Wii.py to Wii.py3.
 * Unpack values (why have classes if we don't use them!)
 * Check MD5 of file
 * Added `sort_by_tid()` function
+
+### VFF
+* **NEW!** Original code by [marcan](https://mrcn.st/t/vffdump.py).
