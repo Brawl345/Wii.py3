@@ -772,7 +772,6 @@ class IplSave:
         fp.close()
         self.update_md5()
 
-
     def __repr__(self):
         return "Wii IplSave: {0} slots used out of 48 ({1} free)".format(self.usedBlocks, self.freeBlocks)
 
@@ -798,4 +797,3 @@ class IplSave:
                 else:
                     output += "\n    "
         return output
-
