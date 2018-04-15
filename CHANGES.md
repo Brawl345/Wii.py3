@@ -43,4 +43,5 @@ This file lists all changes that were made from Wii.py to Wii.py3.
 * Support both "versions" of the file - one is 832 bytes, the new one for >= 4.0 is 1216 bytes
 * Divided into `IplSaveHeader` and `IplSaveEntry`
 * Unpack values (why have classes if we don't use them!)
-* Checks MD5 of file
+* Check MD5 of file
+* Added `sort_by_tid()` function

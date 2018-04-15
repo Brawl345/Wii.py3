@@ -681,7 +681,7 @@ class IplSave:
         self.freeBlocks = 0
         for i in range(48):
             self.channels.append(self.IplSaveEntry().unpack(fp.read(16)))
-            if self.channels[i].titleid == 0 and self.channels[i].type1 == 0:
+            if self.channels[i].type1 == 0:
                 self.freeBlocks += 1
         self.usedBlocks = 48 - self.freeBlocks
 
@@ -712,7 +712,7 @@ class IplSave:
         if not 1 <= col <= 4 or not 1 <= row <= 3 or not 1 <= page <= 4:
             raise ValueError("Out of bounds")
         i = ((col - 1) + ((row - 1) * 4) + ((page - 1) * 12))
-        if self.channels[i].titleid == 0 and self.channels[i].type1 == 0:
+        if self.channels[i].type1 == 0:
             return True
         return False
 
@@ -746,6 +746,27 @@ class IplSave:
         fp.write(self.hdr.pack())
         for i in range(48):
             fp.write(self.channels[i].pack())
+        fp.write(self.footer)
+
+        fp.close()
+        self.update_md5()
+
+    def sort_by_tid(self):
+        """Sorts the whole Wii menu after the lower titleid"""
+        fp = open(self.f, "r+b")
+        fp.write(self.hdr.pack())
+        disc_channel = [x for x in self.channels if x.type1 == 1][0]
+        fp.write(disc_channel.pack())
+
+        sorted_channels = sorted(self.channels, key=lambda x: x.titleid & 0xFFFFFFFF)
+        freeslots = 0
+        for i in sorted_channels:
+            if i.type1 == 0:
+                freeslots += 1
+            elif i.titleid != 0:
+                fp.write(i.pack())
+
+        fp.write((b"\x00" * 16) * freeslots)
         fp.write(self.footer)
 
         fp.close()

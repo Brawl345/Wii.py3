@@ -18,3 +18,9 @@ TODO
 - [X] set_encryption()
 - [X] set_proxy() (also for proxyCopy)
 - [X] set_mtu()
+
+### IplSave
+- [ ] add_title()
+- [ ] delete_title()
+- [ ] delete_position()
+- [ ] add_disc_channel() -> movable flag
