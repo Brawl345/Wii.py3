@@ -15,6 +15,10 @@ This file lists all changes that were made from Wii.py to Wii.py3.
 ## Struct.py
 * Reformat according to PEP guidelines (and things like `if x == None` -> `if not x`)
 
+## archive.py
+### VFF
+* **NEW!** Original code by [marcan](https://mrcn.st/t/vffdump.py).
+
 ## export.py
 ### locDat
 * Corrected a few mistakes
@@ -45,6 +49,3 @@ This file lists all changes that were made from Wii.py to Wii.py3.
 * Unpack values (why have classes if we don't use them!)
 * Check MD5 of file
 * Added `sort_by_tid()` function
-
-### VFF
-* **NEW!** Original code by [marcan](https://mrcn.st/t/vffdump.py).
