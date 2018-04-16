@@ -23,4 +23,4 @@ TODO
 - [ ] add_title()
 - [ ] delete_title()
 - [ ] delete_position()
-- [ ] add_disc_channel() -> movable flag
+- [X] add_disc_channel()

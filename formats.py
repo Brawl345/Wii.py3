@@ -773,6 +773,46 @@ class IplSave:
         fp.close()
         self.update_md5()
 
+    def add_disc_channel(self, col=1, row=1, page=1):
+        """Adds the disc channel to col, row, page."""
+        if not 1 <= col <= 4 or not 1 <= row <= 3 or not 1 <= page <= 4:
+            raise ValueError("Out of bounds")
+        if not self.is_block_free(col, row, page):
+            raise Exception("Destination tile is not free")
+
+        for index, channel in enumerate(self.channels):
+            if channel.type1 == 1:
+                oldpos = index
+                break
+        else:
+            print("Disc channel not found")
+            oldpos = -1
+
+        newpos = ((col - 1) + ((row - 1) * 4) + ((page - 1) * 12))
+        if oldpos > -1:
+            self.channels[oldpos], self.channels[newpos] = self.channels[newpos], self.channels[oldpos]
+        else:
+            self.channels[newpos].type1 = 1
+            self.channels[newpos].type2 = 1
+            self.channels[newpos].unknown = 0
+            self.channels[newpos].titleid = 0
+            self.channels[newpos].flags = 0x0F
+
+        """This doesn't work...
+        if movable:
+            self.channels[newpos].flags = 0x0E
+        else:
+            self.channels[newpos].flags = 0x0F"""
+
+        fp = open(self.f, "r+b")
+        fp.write(self.hdr.pack())
+        for i in range(48):
+            fp.write(self.channels[i].pack())
+        fp.write(self.footer)
+
+        fp.close()
+        self.update_md5()
+
     def __repr__(self):
         return "Wii IplSave: {0} slots used out of 48 ({1} free)".format(self.usedBlocks, self.freeBlocks)
 
