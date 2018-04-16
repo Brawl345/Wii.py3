@@ -46,6 +46,9 @@ This file lists all changes that were made from Wii.py to Wii.py3.
 * Added more functions for manipulating data
 * Proxy support (reading + writing)
 
+### NWC24fl
+* **NEW!** Shows information about the friend list
+
 ### NWC24msg
 * **NEW!** Shows information about the nwc24msg.cfg/nwc24msg.cbk
 * Can change Mail Engine URLs, domain, mlchkid and Mail password

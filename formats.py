@@ -705,8 +705,118 @@ class NetConfig:
         return output
 
 
+class NWC24fl:
+    """This class shows info for the friend list, which is stored in /shared2/wc24/nwc24fl.bin.
+       Reference: http://wiibrew.org/wiki//shared2/wc24/nwc24fl.bin
+
+    Args:
+        f (str): Path to nwc24fl.bin
+    """
+
+    class FriendListHeader(Struct):
+        __endian__ = Struct.BE
+
+        def __format__(self, format_spec=None):
+            self.magic = Struct.string(4)
+            self.unknown = Struct.uint32
+            self.maxEntries = Struct.uint32
+            self.friendCount = Struct.uint32
+            self.padding = Struct.string(48)
+
+    class FriendListEntry(Struct):
+        __endian__ = Struct.BE
+
+        def __format__(self, format_spec=None):
+            self.type = Struct.uint32
+            self.state = Struct.uint32
+            self.name = Struct.string(20)
+            self.unkown = Struct.string(4)
+            self.miiID = Struct.uint32
+            self.systemID = Struct.uint32
+            self.reserved = Struct.string(24)
+            self.friendCode = Struct.string(96)
+            self.padding = Struct.string(160)
+
+        def __repr__(self):
+            if self.type == 1:
+                friendcode = int.from_bytes(self.friendCode.rstrip(b"\00"), byteorder='big')
+            else:
+                friendcode = self.friendCode.rstrip(b"\00").decode()
+            if self.type > 0:
+                return "{0}: {1}".format(self.name.rstrip(b"\x00").decode('utf-16-be'), friendcode)
+            else:
+                return "Empty"
+
+    def __init__(self, f):
+        self.f = f
+        try:
+            file = open(f, 'rb')
+        except FileNotFoundError:
+            raise FileNotFoundError('File not found')
+
+        self.hdr = self.FriendListHeader().unpack(file.read(64))
+        if self.hdr.magic != b"WcFl":
+            raise Exception("Magic word is wrong, should be 'WcFl'")
+
+        self.friendcodes = []
+        for i in range(self.hdr.maxEntries):
+            self.friendcodes.append(file.read(8))
+        self.entries = []
+        for i in range(self.hdr.maxEntries):
+            self.entries.append(self.FriendListEntry().unpack(file.read(320)))
+
+    def get_friend_name(self, num):
+        """Get name of friend in index 'num'"""
+        if num > self.hdr.friendCount - 1:
+            return None
+        if num > self.hdr.maxEntries - 1:
+            raise ValueError("Out of bounds")
+
+        return self.entries[num].name.rstrip(b"\x00").decode('utf-16-be')
+
+    def get_friend_code(self, num):
+        """Get friendcode/mail in index 'num'"""
+        if num > self.hdr.friendCount - 1:
+            return None
+        if num > self.hdr.maxEntries - 1:
+            raise ValueError("Out of bounds")
+
+        if self.entries[num].type == 1:  # Friend Code
+            return int.from_bytes(self.entries[num].friendCode.rstrip(b"\00"), byteorder='big')
+        else:  # E-Mail
+            return self.entries[num].friendCode.rstrip(b"\00").decode()
+
+    def __repr__(self):
+        return "Wii Friend List: {0}/{1} Entries used".format(self.hdr.friendCount, self.hdr.maxEntries)
+
+    def __str__(self):
+        output = "Friend List:\n"
+        output += "  {0}/{1} Entries used\n\n".format(self.hdr.friendCount, self.hdr.maxEntries)
+
+        for friend in self.entries:
+            if friend.type == 0:
+                continue
+            output += "  {0}\n".format(friend.name.rstrip(b"\x00").decode('utf-16-be'))
+            if friend.type == 1:
+                output += "    Friend Code: {0}\n".format(int.from_bytes(friend.friendCode.rstrip(b"\00"),
+                                                                         byteorder='big'))
+                if friend.state == 1:
+                    output += "    State: Unconfirmed\n"
+                elif friend.state == 2:
+                    output += "    State: Confirmed\n"
+                elif friend.state == 3:
+                    output += "    State: Declined\n"
+            else:
+                output += "    E-Mail: {0}\n".format(friend.friendCode.rstrip(b"\00").decode())
+
+            output += "\n"
+
+        return output
+
+
 class NWC24msg:
-    """This class just shows info for the nwc24via the /shared2/wc24/nwc24msg.cfg file.
+    """This class shows info for the nwc24via the /shared2/wc24/nwc24msg.cfg file.
+       It can also manipulate some data, like the URLs, domain, password and mlkchid.
        Reference: http://wiibrew.org/wiki//shared2/wc24/nwc24msg.cfg
 
     Args:
