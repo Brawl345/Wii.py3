@@ -705,6 +705,171 @@ class NetConfig:
         return output
 
 
+class NWC24msg:
+    """This class just shows info for the nwc24via the /shared2/wc24/nwc24msg.cfg file.
+       Reference: http://wiibrew.org/wiki//shared2/wc24/nwc24msg.cfg
+
+    Args:
+        f (str): Path to nwc24msg.cfg or nwc24msg.cbk
+    """
+
+    class FileStructure(Struct):
+        __endian__ = Struct.BE
+
+        def __format__(self, format_spec=None):
+            self.magic = Struct.string(4)
+            self.version = Struct.uint32
+            self.friendCode = Struct.uint64
+            self.idGeneration = Struct.uint32
+            self.registered = Struct.uint32
+            self.mailDomain = Struct.string(0x40)
+            self.passwd = Struct.string(0x20)
+            self.mlchkid = Struct.string(0x24)
+            self.mailEngineURLs = Struct.string(0x80)[5]
+            self.reserved = Struct.string(0xDC)
+            self.titleBooting = Struct.uint32
+            self.checksum = Struct.uint32
+
+    def __init__(self, f):
+        self.f = f
+        try:
+            rawfile = open(f, 'rb')
+        except FileNotFoundError:
+            raise FileNotFoundError('File not found')
+
+        fp = rawfile.read()
+        self.file = self.FileStructure().unpack(fp)
+        self.valid = True
+
+        if self.file.magic != b"WcCf":
+            raise Exception("Magic word is wrong, should be 'WcCf'")
+
+        if self.file.checksum != Crypto().generate_checksum(fp[:-4]):
+            self.valid = False
+            print("WARNING: Checksum is invalid")
+        rawfile.close()
+
+    def get_password(self):
+        """Returns the Wii Mail password."""
+        return self.file.passwd.rstrip(b"\x00").decode()
+
+    def get_mlchkid(self):
+        """Returns the Wii Mail Check ID."""
+        return self.file.mlchkid.rstrip(b"\x00").decode()
+
+    def get_mail_domain(self):
+        """Returns the mail domain for Wii Mail."""
+        return self.file.mailDomain.rstrip(b"\x00").decode()
+
+    def get_engine_url(self, num):
+        """Returns the Wii Mail Engine URL on position num."""
+        try:
+            return self.file.mailEngineURLs[num].rstrip(b"\x00").decode()
+        except IndexError:
+            print("Please use a number from 0 to 4 for "
+                  "'account', 'check', 'receive', 'delete' or 'send' respectively.")
+            return None
+
+    def update_checksum(self):
+        """Updates the checksum in the file."""
+        rawfile = open(self.f, 'r+b')
+        fp = rawfile.read()
+        new_checksum = Crypto().generate_checksum(fp[:-4])
+        self.file.checksum = new_checksum
+        rawfile.seek(0)
+        rawfile.write(self.file.pack())
+        rawfile.close()
+
+    def change_mail_domain(self, domain):
+        """Changes the mail domain."""
+        if not domain.startswith("@"):
+            domain = "@" + domain
+        if len(domain) > 64:
+            raise Exception("Domain must be <= 64 characters")
+        self.file.mailDomain = pad_blocksize(domain.encode(), 0x40)
+
+        rawfile = open(self.f, 'r+b')
+        rawfile.write(self.file.pack())
+        rawfile.close()
+        self.update_checksum()
+
+    def change_engine_url(self, url, num):
+        """Changes the URLs used by the Mail Engine.
+
+        Args:
+            url (str): New URL
+            num (int): Index of the engine URL for the action:
+                0: account, 1: check, 2: receive, 3: delete, 4: send
+        """
+        if not url.startswith("http://") and not url.startswith("https://"):
+            raise Exception("Invalid URL")
+
+        if len(url) > 128:
+            raise Exception("URL must be <= 128 characters")
+
+        try:
+            self.file.mailEngineURLs[num] = pad_blocksize(url.encode(), 0x80)
+        except IndexError:
+            print("Please use a number from 0 to 4 for "
+                  "'account', 'check', 'receive', 'delete' or 'send' respectively.")
+            return
+
+        rawfile = open(self.f, 'r+b')
+        rawfile.write(self.file.pack())
+        rawfile.close()
+        self.update_checksum()
+
+    def change_password(self, password):
+        """Changes Wii Mail password."""
+        if len(password) > 32:
+            raise Exception("Password must be <= 32 characters")
+
+        self.file.passwd = pad_blocksize(password.encode(), 0x20)
+
+        rawfile = open(self.f, 'r+b')
+        rawfile.write(self.file.pack())
+        rawfile.close()
+        self.update_checksum()
+
+    def change_mlchkid(self, mlchkid):
+        """Changes Wii Mail Check ID."""
+        if len(mlchkid) > 36:
+            raise Exception("mlchkid must be <= 36 characters")
+
+        self.file.mlchkid = pad_blocksize(mlchkid.encode(), 0x24)
+
+        rawfile = open(self.f, 'r+b')
+        rawfile.write(self.file.pack())
+        rawfile.close()
+        self.update_checksum()
+
+    def __repr__(self):
+        return "Wii nwc24msg for Friend Code {0} ({1} Checksum: {2})".format(
+            self.file.friendCode,
+            'Valid' if self.valid else 'Invalid',
+            self.file.checksum
+        )
+
+    def __str__(self):
+        output = "nwc24msg:\n"
+        output += "  Checksum: {0} ({1})\n".format(self.file.checksum, 'valid' if self.valid else 'invalid')
+        output += "  Version: {0}\n".format(self.file.version)
+        output += "  Title booting: {0}\n".format('Disabled' if self.file.titleBooting == 0 else "Enabled")
+        output += "  Friend code: {0}\n".format(self.file.friendCode)
+        output += "  Generated IDs: {0}\n\n".format(self.file.idGeneration)
+
+        output += "  Mail domain: {0}\n".format(self.get_mail_domain())
+        output += "  Registered: {0}\n".format('Yes' if self.file.registered == 2 else "No")
+        output += "  Password: {0}\n".format(self.get_password())
+        output += "  Mlchkid: {0}\n\n".format(self.get_mlchkid())
+
+        output += "  Mail Engine URLs:\n"
+        for i in range(5):
+            output += "    {0}\n".format(self.get_engine_url(i))
+
+        return output
+
+
 class IplSave:
     """This class perfoms all iplsave.bin related functions, like (re-)moving and adding channels.
        Reference: http://wiibrew.org/wiki//title/00000001/00000002/data/iplsave.bin
