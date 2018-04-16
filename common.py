@@ -54,3 +54,21 @@ class Crypto:
     @classmethod
     def create_md5hash(cls, data):
         return hashlib.md5(data).digest()
+
+    @classmethod
+    def generate_checksum(cls, data):
+        """Generates a checksum for NANDBOOTINFO, nwc24msg.cfg and probably more.
+        Make sure to pass data without the checksum!
+
+        Checksum calculation goes like this:
+        1) Break the entire file into 4 byte groups (without the checksum)
+        2) Convert the bytes into an integer and add them all together
+        3) Grab the lower 32 bits
+        Reference: https://github.com/RiiConnect24/RiiConnect24-Mail-Patcher-Windows/blob/master/mailparse.rb#L61-L82
+        """
+        checksum = 0
+        for block in range(0, len(data), 4):
+            b = data[block:block + 4]
+            checksum += int.from_bytes(b, byteorder='big')
+        checksum &= 0xFFFFFFFF
+        return checksum

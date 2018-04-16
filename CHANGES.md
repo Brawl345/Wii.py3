@@ -33,6 +33,9 @@ This file lists all changes that were made from Wii.py to Wii.py3.
 * Corrected header for SavegameBanner
 
 ## formats.py
+### NANDBoot
+* **NEW!** Shows information about NANDBoot and can update the checksum
+
 ### netConfig
 * Rewrote with `ConfigHeader` and `ConfigEntry` classes
 * Improved nearly everything

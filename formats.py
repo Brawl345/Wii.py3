@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import array
 import os
 import socket
 import string
@@ -7,6 +6,72 @@ from binascii import hexlify, unhexlify
 
 from Struct import Struct
 from common import *
+
+
+class NANDBoot:
+    """This class just shows info for the last launched title via the /shared2/sys/NANDBOOTINFO file.
+       Reference: http://wiibrew.org/wiki//shared2/sys/NANDBOOTINFO
+
+    Args:
+        f (str): Path to NANDBOOTINFO
+    """
+
+    class NANDBOOTINFO(Struct):
+        __endian__ = Struct.BE
+
+        def __format__(self, format_spec=None):
+            self.checksum = Struct.uint32
+            self.argsOff = Struct.uint32
+            self.unknown_1 = Struct.uint8
+            self.unknown_2 = Struct.uint8
+            self.appType = Struct.uint8
+            self.titleType = Struct.uint8
+            self.launchCode = Struct.uint32
+            self.unknown_3 = Struct.uint32[2]
+            self.launcher = Struct.uint64
+            self.argBuffer = Struct.string(4096)
+
+    def __init__(self, f):
+        self.f = f
+        try:
+            rawfile = open(f, 'rb')
+        except FileNotFoundError:
+            raise FileNotFoundError('File not found')
+
+        fp = rawfile.read()
+        self.file = self.NANDBOOTINFO().unpack(fp)
+        self.valid = True
+
+        if self.file.checksum != Crypto().generate_checksum(fp[4:]):
+            self.valid = False
+            print("WARNING: Checksum is invalid")
+        rawfile.close()
+
+    def update_checksum(self):
+        """Updates the checksum in the file."""
+        rawfile = open(self.f, 'r+b')
+        fp = rawfile.read()
+        new_checksum = Crypto().generate_checksum(fp[4:])
+        self.file.checksum = new_checksum
+        rawfile.seek(0)
+        rawfile.write(self.file.pack())
+        rawfile.close()
+
+    def __repr__(self):
+        return "Wii NANDBOOTINFO ({0} Checksum: {1})".format('Valid' if self.valid else 'Invalid', self.file.checksum)
+
+    def __str__(self):
+        output = "NANDBOOTINFO:\n"
+        output += "  Checksum: {0} ({1})\n".format(self.file.checksum, 'valid' if self.valid else 'invalid')
+        output += "  ArgsOff: {0}\n".format(self.file.argsOff)
+        output += "  App type: {0}\n".format(self.file.appType)
+        output += "  Title type: {0}\n".format(self.file.titleType)
+        output += "  Launch code: {0}\n".format(self.file.launchCode)
+        output += "  Launcher: {0}\n".format(self.file.launcher)
+        output += "  Argument buffer:\n"
+        output += self.file.argBuffer.strip(b"\x00").decode('latin-1')
+
+        return output
 
 
 class NetConfig:
