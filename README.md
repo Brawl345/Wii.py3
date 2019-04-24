@@ -1,3 +1,7 @@
+NOTE
+====
+Please use the [new repository](https://github.com/WiiDatabase/Wii.py3)!
+
 Wii.py3 (WIP)
 =======
 This is a work-in-progress port of the Wii library [Wii.py](https://github.com/grp/Wii.py) to Python 3(.6).
